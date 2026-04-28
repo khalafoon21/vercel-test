@@ -1,5 +1,3 @@
-const sqlite3 = require('sqlite3');
-const { open } = require('sqlite');
 const path = require('path');
 
 // Vercel Environment Detection
@@ -142,6 +140,10 @@ async function initDB() {
 
     // Local SQLite
     try {
+        // ✅ تم النقل هنا: استدعاء المكتبات يتم فقط عند التشغيل محلياً
+        const sqlite3 = require('sqlite3');
+        const { open } = require('sqlite');
+
         const dbPath = path.join(__dirname, '../../database.sqlite');
         const db = await open({
             filename: dbPath,
@@ -282,7 +284,6 @@ async function initDB() {
             );
         `);
         
-        // ... rest of CREATE TABLEs and migrations unchanged ...
         console.log('✅ تم الاتصال بقاعدة البيانات وتجهيز الجداول بنجاح!');
         
         dbInstance = db;
