@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spider Store | لوحة التحكم - إضافة قسم</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Cairo', 'sans-serif'] },
+                    colors: {
+                        primary: { 50: '#ECFEFF', 100: '#CFFAFE', 500: '#06B6D4', 600: '#0891B2', 700: '#0E7490' },
+                        success: { 50: '#F0FDF4', 500: '#22C55E', 700: '#15803D' },
+                        error: { 50: '#FEF2F2', 500: '#EF4444', 700: '#B91C1C' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style> 
+        body { background-color: #F8FAFC; } 
+        /* تحسين شكل السكرول بار */
+        .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body id="admin-layout" class="font-sans text-gray-800 antialiased flex flex-col md:flex-row min-h-screen">
+
+    <main class="flex-1 p-4 md:p-8 md:mr-64 w-full overflow-hidden transition-all duration-300 relative custom-scrollbar">
+        
+        <div id="toast" class="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-2 px-6 py-3 rounded-lg shadow-lg font-bold text-sm md:text-base transition-all duration-300 opacity-0 pointer-events-none -translate-y-4">
+            <i id="toastIcon" class="fas"></i>
+            <span id="toastMessage">رسالة الإشعار هنا</span>
+        </div>
+
+        <header class="mb-8 border-b border-gray-200 pb-4">
+            <h1 class="text-2xl md:text-3xl font-extrabold text-gray-900">إدارة الأقسام</h1>
+            <p class="text-gray-500 mt-1 text-sm md:text-base">قم بتنظيم متجرك عن طريق إضافة أقسام جديدة للمنتجات.</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sticky top-8">
+                    <h2 class="text-lg font-bold mb-5 flex items-center gap-2 text-gray-800">
+                        <i class="fas fa-layer-group text-primary-500"></i> إضافة قسم جديد
+                    </h2>
+                    <form id="addCategoryForm" onsubmit="handleAddCategory(event)">
+                        <div class="mb-5">
+                            <label class="block text-sm font-bold text-gray-700 mb-2">اسم القسم <span class="text-error-500">*</span></label>
+                            <input type="text" id="cat_name" required placeholder="مثال: ألعاب فيديو" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-gray-50 focus:bg-white text-sm">
+                        </div>
+                        
+                        <div class="mb-6">
+                            <label class="block text-sm font-bold text-gray-700 mb-2">اختر أيقونة للقسم <span class="text-error-500">*</span></label>
+                            <input type="hidden" id="cat_icon" value="fas fa-tag" required>
+                            
+                            <div class="grid grid-cols-4 gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg" id="iconPicker">
+                                </div>
+                        </div>
+
+                        <button type="submit" id="submitBtn" class="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 text-base">
+                            <i class="fas fa-plus-circle"></i> حفظ القسم
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="p-6 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
+                        <h2 class="text-lg font-bold text-gray-800">الأقسام الحالية</h2>
+                        <span id="catCount" class="bg-primary-100 text-primary-700 px-3 py-1 rounded-full text-xs font-bold">0 قسم</span>
+                    </div>
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full text-right border-collapse">
+                            <thead class="bg-gray-50 text-gray-600 text-xs font-bold uppercase tracking-wider">
+                                <tr>
+                                    <th class="p-4 w-20 text-center">الأيقونة</th>
+                                    <th class="p-4">اسم القسم</th>
+                                    <th class="p-4 text-center w-32">الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="categoriesTableBody" class="divide-y divide-gray-100 text-sm md:text-base">
+                                <tr>
+                                    <td colspan="3" class="p-12 text-center text-primary-600">
+                                        <i class="fas fa-circle-notch fa-spin text-3xl mb-3"></i>
+                                        <p class="font-semibold">جاري تحميل الأقسام...</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="../../components/app-state.js"></script>
+    <script src="../../components/admin-sidebar.js"></script>
+    <script>
+        if(typeof loadAdminSidebar === 'function') loadAdminSidebar('add-category');
+        const API_URL = '/api';
+
+        // --- مكتبة الأيقونات (يمكنك إضافة أي أيقونة FontAwesome هنا) ---
+        const commonIcons = [
+            'fas fa-tag', 'fas fa-gamepad', 'fas fa-laptop', 'fas fa-mobile-alt',
+            'fas fa-tshirt', 'fas fa-shoe-prints', 'fas fa-headphones', 'fas fa-camera',
+            'fas fa-couch', 'fas fa-car', 'fas fa-dumbbell', 'fas fa-book',
+            'fas fa-plug', 'fas fa-clock', 'fas fa-basketball-ball', 'fas fa-gem'
+        ];
+
+        // دالة لعرض وتحديث الأيقونات
+        function renderIconPicker() {
+            const container = document.getElementById('iconPicker');
+            const hiddenInput = document.getElementById('cat_icon');
+
+            container.innerHTML = commonIcons.map(icon => {
+                const isSelected = hiddenInput.value === icon;
+                const activeClasses = isSelected 
+                    ? 'bg-primary-100 text-primary-600 border-primary-500 shadow-sm ring-1 ring-primary-500' 
+                    : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-100 hover:text-gray-800';
+                
+                return `
+                    <button type="button" 
+                        onclick="selectIcon('${icon}')" 
+                        class="h-10 w-full flex items-center justify-center rounded border transition-all duration-200 ${activeClasses}"
+                        title="${icon}">
+                        <i class="${icon} text-lg"></i>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        // دالة لاختيار أيقونة
+        function selectIcon(iconClass) {
+            document.getElementById('cat_icon').value = iconClass;
+            renderIconPicker(); // إعادة الرسم عشان تتلون الأيقونة المختارة
+        }
+
+        function logout() {
+            if (window.AppState) window.AppState.clearToken();
+            else localStorage.removeItem('spider_token');
+            window.location.href = '../auth/login.html';
+        }
+
+        function showToast(message, type = 'success') {
+            if (window.AppUI) return window.AppUI.toast(message, type);
+            const toast = document.getElementById('toast');
+            const toastIcon = document.getElementById('toastIcon');
+            const toastMessage = document.getElementById('toastMessage');
+
+            toast.className = 'absolute top-4 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-2 px-6 py-3 rounded-lg shadow-lg font-bold text-sm md:text-base transition-all duration-300';
+            toastIcon.className = 'fas text-lg';
+
+            if (type === 'success') {
+                toast.classList.add('bg-success-50', 'text-success-700', 'border', 'border-success-200');
+                toastIcon.classList.add('fa-check-circle');
+            } else if (type === 'error') {
+                toast.classList.add('bg-error-50', 'text-error-700', 'border', 'border-error-200');
+                toastIcon.classList.add('fa-exclamation-circle');
+            }
+
+            toastMessage.textContent = message;
+            toast.classList.remove('opacity-0', 'pointer-events-none', '-translate-y-4');
+            setTimeout(() => toast.classList.add('opacity-0', 'pointer-events-none', '-translate-y-4'), 3000);
+        }
+
+        async function fetchCategories() {
+            try {
+                const response = await fetch(`${API_URL}/categories`);
+                const data = await response.json();
+                const container = document.getElementById('categoriesTableBody');
+                
+                if (data.success) {
+                    document.getElementById('catCount').textContent = `${data.data.length} قسم`;
+                    if (data.data.length === 0) {
+                        container.innerHTML = '<tr><td colspan="3" class="p-12 text-center text-gray-400 bg-gray-50"><i class="fas fa-folder-open text-4xl mb-3"></i><p>لا توجد أقسام مضافة بعد</p></td></tr>';
+                        return;
+                    }
+                    
+                    container.innerHTML = data.data.map(cat => `
+                        <tr class="hover:bg-gray-50 transition group">
+                            <td class="p-4 flex justify-center">
+                                <div class="w-10 h-10 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center border border-primary-100 group-hover:bg-primary-100 transition">
+                                    <i class="${cat.icon || 'fas fa-tag'} text-lg"></i>
+                                </div>
+                            </td>
+                            <td class="p-4 font-bold text-gray-700">${cat.name}</td>
+                            <td class="p-4 text-center">
+                                <button type="button" onclick="deleteCategory(${cat.id})" class="text-error-500 hover:text-white hover:bg-error-500 bg-error-50 border border-error-100 h-9 w-9 rounded-lg transition shadow-sm flex items-center justify-center mx-auto" title="حذف القسم">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                showToast('خطأ في جلب الأقسام', 'error');
+            }
+        }
+
+        async function handleAddCategory(event) {
+            event.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const token = localStorage.getItem('spider_token');
+            const name = document.getElementById('cat_name').value;
+            const icon = document.getElementById('cat_icon').value;
+
+            const originalBtnHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> جاري الحفظ...';
+
+            try {
+                const response = await fetch(`${API_URL}/categories`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ name, icon })
+                });
+
+                const data = await response.json();
+                if (response.ok || data.success) {
+                    showToast('تم إضافة القسم بنجاح', 'success');
+                    document.getElementById('cat_name').value = '';
+                    selectIcon('fas fa-tag'); // إعادة الأيقونة للافتراضي
+                    fetchCategories();
+                } else {
+                    showToast(data.message || 'حدث خطأ ما', 'error');
+                }
+            } catch (error) {
+                showToast('خطأ في الاتصال بالسيرفر', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalBtnHtml;
+            }
+        }
+
+        async function deleteCategory(id) {
+            const confirmed = window.AppUI
+                ? await window.AppUI.confirmDelete('\u0647\u0644 \u0623\u0646\u062a \u0645\u062a\u0623\u0643\u062f \u0645\u0646 \u062d\u0630\u0641 \u0647\u0630\u0627 \u0627\u0644\u0642\u0633\u0645\u061f \u0642\u062f \u064a\u0624\u062b\u0631 \u0630\u0644\u0643 \u0639\u0644\u0649 \u0627\u0644\u0645\u0646\u062a\u062c\u0627\u062a \u0627\u0644\u0645\u0631\u062a\u0628\u0637\u0629 \u0628\u0647.')
+                : true;
+            if (!confirmed) return;
+            const token = localStorage.getItem('spider_token');
+            try {
+                const response = await fetch(`${API_URL}/categories/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if(response.ok) {
+                    showToast('تم حذف القسم بنجاح', 'success');
+                    fetchCategories();
+                }
+            } catch (error) {
+                showToast('خطأ أثناء الحذف', 'error');
+            }
+        }
+
+        // تشغيل الدالة المبدئية عند تحميل الصفحة
+        window.onload = () => {
+            renderIconPicker();
+            fetchCategories();
+        };
+    </script>
+</body>
+</html>

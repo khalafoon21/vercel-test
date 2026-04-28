@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spider Store | تفاصيل المنتج</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Cairo', 'sans-serif'] },
+                    colors: {
+                        primary: { 50: '#ECFEFF', 500: '#06B6D4', 600: '#0891B2', 700: '#0E7490' },
+                        secondary: { 50: '#FFFBEB', 500: '#F59E0B' },
+                        success: { 500: '#22C55E', 100: '#DCFCE7', 600: '#16A34A' },
+                        error: { 500: '#EF4444', 100: '#FEE2E2', 600: '#DC2626' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style> 
+        body { background-color: #F9FAFB; } 
+        .smooth-transition { transition: all 0.2s ease-out; } 
+        .star-hover:hover ~ i { color: #D1D5DB !important; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        @keyframes shrinkProgress { from { width: 100%; } to { width: 0%; } }
+        .animate-progress { animation: shrinkProgress 3s linear forwards; }
+    </style>
+</head>
+<body class="font-sans text-gray-800 antialiased flex flex-col min-h-screen">
+
+    <script src="../../components/app-state.js"></script>
+    <script src="../../components/ui-feedback.js"></script>
+    <script src="../../components/main-navbar.js"></script>
+
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 pointer-events-none" aria-live="polite"></div>
+
+    <main class="container mx-auto px-4 lg:px-8 py-12 flex-1 mt-6">
+        <a href="../../index.html" class="inline-flex items-center text-gray-500 hover:text-primary-600 mb-8 transition-colors font-medium">
+            <i class="fas fa-arrow-right ml-2"></i> العودة للمتجر
+        </a>
+
+        <div id="productContainer" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[400px] flex items-center justify-center mb-12">
+            <div class="text-center py-12 text-gray-500">
+                <i class="fas fa-spinner fa-spin text-4xl mb-3"></i>
+                <p class="text-lg">جاري تحميل تفاصيل المنتج...</p>
+            </div>
+        </div>
+
+        <div id="reviewsSection" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8 hidden mb-12">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6 border-b pb-4">تقييمات العملاء</h2>
+
+            <div id="addReviewContainer" class="mb-8 hidden bg-gray-50 p-6 rounded-xl border border-gray-200">
+                <h3 class="font-bold text-gray-800 mb-4">أضف تقييمك للمنتج</h3>
+                
+                <div class="flex items-center gap-1 mb-4 flex-row-reverse justify-end" id="starRating">
+                    <i class="fas fa-star text-3xl text-gray-300 cursor-pointer peer hover:text-yellow-400 transition" data-val="5"></i>
+                    <i class="fas fa-star text-3xl text-gray-300 cursor-pointer peer hover:text-yellow-400 transition" data-val="4"></i>
+                    <i class="fas fa-star text-3xl text-gray-300 cursor-pointer peer hover:text-yellow-400 transition" data-val="3"></i>
+                    <i class="fas fa-star text-3xl text-gray-300 cursor-pointer peer hover:text-yellow-400 transition" data-val="2"></i>
+                    <i class="fas fa-star text-3xl text-gray-300 cursor-pointer peer hover:text-yellow-400 transition" data-val="1"></i>
+                </div>
+
+                <textarea id="reviewComment" rows="3" placeholder="اكتب رأيك ومميزات أو عيوب المنتج..." class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 outline-none mb-4"></textarea>
+                <button type="button" onclick="submitReview()" id="submitReviewBtn" class="bg-secondary-500 hover:bg-yellow-500 text-white font-bold py-2 px-6 rounded-md shadow-sm transition-colors">
+                    نشر التقييم
+                </button>
+            </div>
+
+            <div id="reviewsList" class="space-y-6"></div>
+        </div>
+
+        <div id="relatedProductsSection" class="hidden">
+            <h2 class="text-2xl font-bold text-gray-900 border-r-4 border-primary-500 pr-3 mb-6">منتجات ذات صلة</h2>
+            <div id="relatedProductsGrid" class="grid grid-cols-2 lg:grid-cols-4 gap-6"></div>
+        </div>
+    </main>
+
+    <footer class="bg-gray-900 text-white py-12 text-center mt-auto">
+        <div class="container mx-auto px-4">
+            <p class="text-gray-500 text-sm">© 2026 Spider Store. جميع الحقوق محفوظة.</p>
+        </div>
+    </footer>
+
+    <script>
+        const API_URL = '/api';
+        const BASE_SERVER = window.location.origin;
+        let currentProduct = null;
+        let selectedQuantity = 1;
+        let userRating = 0;
+        let currentUserRole = null; 
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const productId = urlParams.get('id');
+
+        const escapeHTML = str => String(str || '').replace(/[&<>'"]/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag]));
+        const safeNumber = value => Number.isFinite(Number(value)) ? Number(value) : 0;
+        const safeId = value => encodeURIComponent(String(value || ''));
+        const buildImageUrl = imagePath => {
+            const cleanPath = String(imagePath || '').trim();
+            if (!cleanPath) return 'https://via.placeholder.com/600?text=No+Image';
+            return /^https?:\/\//i.test(cleanPath) ? cleanPath : `${BASE_SERVER}${cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`}`;
+        };
+        const normalizeProductImages = product => {
+            const images = [];
+            const pushImage = value => {
+                const clean = String(value || '').trim();
+                if (clean && !images.includes(clean)) images.push(clean);
+            };
+
+            pushImage(product.image_url || product.image);
+            [product.images_array, product.images_list, product.images].forEach(value => {
+                if (Array.isArray(value)) return value.forEach(pushImage);
+                if (typeof value === 'string' && value.trim()) {
+                    try {
+                        const parsed = JSON.parse(value);
+                        if (Array.isArray(parsed)) parsed.forEach(pushImage);
+                        else pushImage(parsed);
+                    } catch (error) {
+                        value.split(/[,\n]/).forEach(pushImage);
+                    }
+                }
+            });
+
+            return images.length ? images : [''];
+        };
+        const calcFinalPrice = (price, discount) => {
+            const basePrice = safeNumber(price);
+            const discountValue = safeNumber(discount);
+            return (discountValue > 0 && discountValue <= 100) ? (basePrice - (basePrice * discountValue / 100)).toFixed(0) : basePrice.toFixed(0);
+        };
+
+        function decodeTokenRole() {
+            const token = window.AppState ? window.AppState.getToken() : localStorage.getItem('spider_token');
+            if (!token) return null;
+            try { return JSON.parse(atob(token.split('.')[1])).role; } catch(e) { return null; }
+        }
+
+        function decodeTokenUserId() {
+            const token = window.AppState ? window.AppState.getToken() : localStorage.getItem('spider_token');
+            if (!token) return null;
+            try { return JSON.parse(atob(token.split('.')[1])).userId; } catch(e) { return null; }
+        }
+
+        async function fetchProductDetails() {
+            if (!productId) { showError('لم يتم العثور على المنتج.'); return; }
+            try {
+                const response = await fetch(`${API_URL}/products/${safeId(productId)}`);
+                const data = await response.json();
+                if (response.ok || data.success) {
+                    currentProduct = data.data || null;
+                    
+                    if (currentProduct) {
+                        renderProduct(currentProduct);
+                        document.getElementById('reviewsSection').classList.remove('hidden');
+                        fetchReviews();
+                        setupReviewForm();
+                        
+                        const categoryToSearch = currentProduct.category_id || currentProduct.category || null;
+                        if(categoryToSearch) fetchRelatedProducts(categoryToSearch, currentProduct.id);
+                    } else {
+                        showError('هذا المنتج غير موجود أو تم حذفه.');
+                    }
+                }
+            } catch (error) { showError('تأكد من تشغيل سيرفر الباك اند 🔌'); }
+        }
+
+        function renderProduct(product) {
+            const container = document.getElementById('productContainer');
+            const price = safeNumber(product.price);
+            const discount = safeNumber(product.discount);
+            const stockQuantity = safeNumber(product.stock_quantity);
+            const isAvailable = stockQuantity > 0;
+            const hasDiscount = discount > 0;
+            const finalPrice = calcFinalPrice(price, discount);
+
+            let imagesArray = normalizeProductImages(product);
+            const mainImgUrl = buildImageUrl(imagesArray[0]);
+            
+            let thumbnailsHtml = '';
+            if (imagesArray.length > 1) {
+                thumbnailsHtml = `<div class="flex gap-3 mt-6 overflow-x-auto p-2 hide-scrollbar w-full justify-center">` + 
+                    imagesArray.map(img => `
+                        <img src="${buildImageUrl(img)}" 
+                             class="w-20 h-20 object-contain border-2 border-gray-200 hover:border-primary-500 rounded-lg cursor-pointer transition-colors bg-white shadow-sm" 
+                             onclick="document.getElementById('mainProductImage').src=this.src">
+                    `).join('') +
+                `</div>`;
+            }
+
+            const avgRating = Math.max(0, Math.min(5, Math.floor(safeNumber(product.average_rating || 4)))); 
+            let starsHtml = '';
+            for(let i=1; i<=5; i++) {
+                starsHtml += `<i class="fas fa-star ${i <= avgRating ? 'text-yellow-400' : 'text-gray-300'} text-sm"></i>`;
+            }
+
+            container.innerHTML = `
+                <div class="flex flex-col md:flex-row w-full">
+                    <div class="md:w-1/2 bg-white flex flex-col items-center justify-center p-8 border-b md:border-b-0 md:border-l border-gray-100 relative">
+                        ${hasDiscount ? `<span class="absolute top-6 left-6 bg-error-500 text-white text-sm font-bold px-4 py-1 rounded-full z-10 shadow-md">خصم ${discount}%</span>` : ''}
+                        <img id="mainProductImage" src="${mainImgUrl}" alt="${escapeHTML(product.title)}" class="w-full max-h-[400px] object-contain hover:scale-105 transition-transform duration-300" onerror="this.onerror=null;this.src='https://via.placeholder.com/600?text=No+Image'">
+                        ${thumbnailsHtml}
+                    </div>
+
+                    <div class="md:w-1/2 p-8 lg:p-12 flex flex-col justify-center bg-gray-50">
+                        ${isAvailable ? 
+                            `<span class="inline-block bg-success-50 text-success-600 text-sm font-bold px-3 py-1 rounded-full mb-4 w-fit border border-success-200"><i class="fas fa-check-circle mr-1"></i> متاح في المخزن</span>` : 
+                            `<span class="inline-block bg-error-50 text-error-600 text-sm font-bold px-3 py-1 rounded-full mb-4 w-fit border border-error-200"><i class="fas fa-times-circle mr-1"></i> نفذت الكمية</span>`
+                        }
+                        
+                        <h1 class="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">${escapeHTML(product.title)}</h1>
+                        
+                        <div class="flex items-center gap-2 mb-6">
+                            <div class="flex">${starsHtml}</div>
+                            <span class="text-gray-400 text-sm">(تقييم عام)</span>
+                        </div>
+
+                        <div class="mb-6 flex items-end gap-3">
+                            <p class="text-4xl font-bold text-primary-600">${finalPrice} <span class="text-lg text-gray-500 font-normal">ج.م</span></p>
+                            ${hasDiscount ? `<p class="text-xl text-gray-400 line-through mb-1">${price.toFixed(0)} ج.م</p>` : ''}
+                        </div>
+                        
+                        <div class="prose prose-sm text-gray-600 mb-8">
+                            <h3 class="text-lg font-bold text-gray-800 mb-2 border-b pb-2">وصف المنتج:</h3>
+                            <p class="whitespace-pre-line leading-relaxed">${escapeHTML(product.description) || 'لا يوجد وصف متاح لهذا المنتج حتى الآن.'}</p>
+                        </div>
+                        
+                        ${isAvailable ? `
+                            <div class="flex flex-col sm:flex-row gap-4 mt-auto border-t pt-8 border-gray-200">
+                                <div class="flex items-center justify-between border border-gray-300 rounded-md w-full sm:w-32 bg-white">
+                                    <button type="button" onclick="event.preventDefault(); event.stopPropagation(); changeQty(1)" class="w-10 h-12 text-gray-600 hover:text-primary-600"><i class="fas fa-plus"></i></button>
+                                    <span id="qtyDisplay" class="font-bold text-lg">1</span>
+                                    <button type="button" onclick="event.preventDefault(); event.stopPropagation(); changeQty(-1)" class="w-10 h-12 text-gray-600 hover:text-error-500"><i class="fas fa-minus"></i></button>
+                                </div>
+                                <button type="button" onclick="event.preventDefault(); event.stopPropagation(); addToCartFromDetails(this)" class="flex-1 bg-primary-500 hover:bg-primary-600 text-white font-bold py-3 px-6 rounded-md transition-colors text-lg flex items-center justify-center gap-2 shadow-lg shadow-primary-200">
+                                    <i class="fas fa-cart-plus pointer-events-none"></i> إضافة للسلة
+                                </button>
+                                <button type="button" onclick="event.preventDefault(); event.stopPropagation(); addToWishlist()" class="bg-white hover:bg-red-50 text-error-500 border border-error-100 font-bold py-3 px-4 rounded-md transition-colors text-lg flex items-center justify-center">
+                                    <i class="fas fa-heart"></i>
+                                </button>
+                            </div>
+                        ` : `
+                            <div class="mt-auto border-t pt-8 border-gray-200">
+                                <button type="button" disabled class="w-full bg-gray-300 text-gray-500 font-bold py-3 px-6 rounded-md cursor-not-allowed flex items-center justify-center gap-2 text-lg">
+                                    <i class="fas fa-box-open"></i> المنتج غير متاح حالياً
+                                </button>
+                            </div>
+                        `}
+                    </div>
+                </div>
+            `;
+        }
+
+        async function fetchRelatedProducts(categoryId, currentId) {
+            try {
+                const response = await fetch(`${API_URL}/products?category=${categoryId}`);
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    const related = data.data.filter(p => p.id != currentId).slice(0, 4);
+                    if (related.length > 0) {
+                        document.getElementById('relatedProductsSection').classList.remove('hidden');
+                        renderRelatedProducts(related);
+                    }
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        function renderRelatedProducts(productsArray) {
+            const container = document.getElementById('relatedProductsGrid');
+            container.innerHTML = '';
+            
+            productsArray.forEach(product => {
+                const productId = safeId(product.id);
+                const imageUrl = buildImageUrl(product.image_url);
+                const price = safeNumber(product.price);
+                const discount = safeNumber(product.discount);
+                const hasDiscount = discount > 0;
+                const finalPrice = calcFinalPrice(price, discount);
+
+                container.innerHTML += `
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-all group flex flex-col h-full">
+                        <div class="relative p-4 bg-gray-50 flex justify-center">
+                            ${hasDiscount ? `<span class="absolute top-3 left-3 bg-error-500 text-white text-xs font-bold px-3 py-1 rounded-full z-10">خصم ${discount}%</span>` : ''}
+                            <a href="product.html?id=${productId}">
+                                <img src="${imageUrl}" class="w-full aspect-square object-contain group-hover:scale-110 transition-transform duration-500" alt="${escapeHTML(product.title)}">
+                            </a>
+                        </div>
+                        <div class="p-5 flex flex-col flex-1">
+                            <a href="product.html?id=${productId}" class="hover:text-primary-600 transition-colors">
+                                <h3 class="font-bold text-gray-800 mb-1 line-clamp-2 text-sm">${escapeHTML(product.title)}</h3>
+                            </a>
+                            <div class="mt-auto flex items-center justify-between pt-3">
+                                <div class="flex flex-col">
+                                    ${hasDiscount ? `<span class="text-gray-400 line-through text-xs">${price.toFixed(0)} ج.م</span>` : ''}
+                                    <span class="text-primary-600 font-bold text-lg">${finalPrice} ج.م</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function setupReviewForm() {
+            currentUserRole = decodeTokenRole();
+            if (currentUserRole) { document.getElementById('addReviewContainer').classList.remove('hidden'); }
+            const stars = document.querySelectorAll('#starRating i');
+            stars.forEach(star => {
+                star.addEventListener('click', (e) => {
+                    userRating = parseInt(e.target.getAttribute('data-val'));
+                    stars.forEach(s => {
+                        const val = parseInt(s.getAttribute('data-val'));
+                        s.className = val <= userRating ? 'fas fa-star text-3xl text-yellow-400 cursor-pointer peer' : 'fas fa-star text-3xl text-gray-300 cursor-pointer peer hover:text-yellow-400 transition';
+                    });
+                });
+            });
+        }
+
+        async function fetchReviews() {
+            const list = document.getElementById('reviewsList');
+            try {
+                const res = await fetch(`${API_URL}/reviews?product_id=${productId}`);
+                const data = await res.json();
+                if (data.success) renderReviews(data.data || []);
+            } catch (e) { list.innerHTML = '<p class="text-error-500">حدث خطأ في تحميل التقييمات.</p>'; }
+        }
+
+        function renderReviews(reviews) {
+            const list = document.getElementById('reviewsList');
+            if (reviews.length === 0) {
+                list.innerHTML = '<div class="text-center py-8 text-gray-500"><i class="far fa-comment-dots text-4xl mb-2"></i><p>لا توجد تقييمات حتى الآن. كن أول من يقيّم هذا المنتج!</p></div>';
+                return;
+            }
+            let html = '';
+            const currentUserId = decodeTokenUserId();
+            reviews.forEach(rev => {
+                let starsHtml = '';
+                for(let i=1; i<=5; i++) starsHtml += `<i class="fas fa-star ${i <= rev.rating ? 'text-yellow-400' : 'text-gray-300'} text-sm"></i>`;
+                
+                let replyHtml = '';
+                const canEditReview = currentUserRole === 'admin' || currentUserRole === 'seller' || Number(rev.user_id) === Number(currentUserId);
+                if (rev.reply) {
+                    replyHtml = `<div class="mt-4 bg-primary-50 p-4 rounded-md border border-primary-100 mr-8">
+                                    <p class="text-xs font-bold text-primary-700 mb-1"><i class="fas fa-store"></i> رد الإدارة:</p>
+                                    <p class="text-sm text-gray-700">${escapeHTML(rev.reply)}</p>
+                                    ${(currentUserRole === 'admin' || currentUserRole === 'seller') ? `<div class="mt-3"><textarea id="replyInput-${rev.id}" rows="1" class="w-full px-3 py-1.5 border border-gray-300 rounded text-sm mb-2 outline-none focus:ring-1 focus:ring-primary-500">${escapeHTML(rev.reply)}</textarea><button type="button" onclick="submitReply(${rev.id})" class="text-xs bg-gray-800 text-white px-3 py-1 rounded hover:bg-gray-700 transition-colors">تعديل الرد</button></div>` : ''}
+                                 </div>`;
+                } else if (currentUserRole === 'admin' || currentUserRole === 'seller') {
+                    replyHtml = `<div class="mt-3 mr-8" id="replyBox-${rev.id}">
+                                    <textarea id="replyInput-${rev.id}" rows="1" placeholder="اكتب ردك هنا..." class="w-full px-3 py-1.5 border border-gray-300 rounded text-sm mb-2 outline-none focus:ring-1 focus:ring-primary-500"></textarea>
+                                    <button type="button" onclick="submitReply(${rev.id})" class="text-xs bg-gray-800 text-white px-3 py-1 rounded hover:bg-gray-700 transition-colors">إرسال الرد</button>
+                                 </div>`;
+                }
+                html += `<div class="border-b border-gray-100 pb-6 last:border-0">
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 font-bold"><i class="fas fa-user"></i></div>
+                                    <div><h4 class="font-bold text-gray-800 text-sm">${escapeHTML(rev.customer_name) || 'عميل'}</h4><div class="flex gap-1 mt-1">${starsHtml}</div></div>
+                                </div>
+                            </div>
+                            <p class="text-gray-600 text-sm mt-3 leading-relaxed pl-12">${escapeHTML(rev.comment)}</p>
+                            ${canEditReview ? `<div class="mt-3 pl-12"><textarea id="reviewEdit-${rev.id}" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded text-sm mb-2 outline-none focus:ring-1 focus:ring-primary-500">${escapeHTML(rev.comment)}</textarea><button type="button" onclick="updateReview(${rev.id}, ${rev.rating})" class="text-xs bg-primary-600 text-white px-3 py-1 rounded hover:bg-primary-700 transition-colors">تعديل التقييم</button></div>` : ''}
+                            ${replyHtml}
+                        </div>`;
+            });
+            list.innerHTML = html;
+        }
+
+        async function submitReview() {
+            if (userRating === 0) { showToast('يرجى اختيار التقييم بالنجوم', 'error'); return; }
+            const comment = document.getElementById('reviewComment').value.trim();
+            if (!comment) { showToast('يرجى كتابة تعليقك', 'error'); return; }
+
+            const token = window.AppState ? window.AppState.getToken() : localStorage.getItem('spider_token');
+            const btn = document.getElementById('submitReviewBtn');
+            btn.disabled = true; btn.innerText = 'جاري النشر...';
+
+            try {
+                const res = await fetch(`${API_URL}/reviews`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ product_id: productId, rating: userRating, comment: comment })
+                });
+                
+                if (res.ok) {
+                    showToast('تم نشر التقييم بنجاح!');
+                    document.getElementById('reviewComment').value = '';
+                    userRating = 0;
+                    document.querySelectorAll('#starRating i').forEach(s => s.className = 'fas fa-star text-3xl text-gray-300 cursor-pointer peer hover:text-yellow-400 transition');
+                    fetchReviews();
+                } else {
+                    const data = await res.json();
+                    showToast(data.message || 'حدث خطأ', 'error');
+                }
+            } catch (e) { showToast('تأكد من الاتصال بالسيرفر', 'error'); }
+            finally { btn.disabled = false; btn.innerText = 'نشر التقييم'; }
+        }
+
+        async function submitReply(reviewId) {
+            const replyText = document.getElementById(`replyInput-${reviewId}`).value.trim();
+            if (!replyText) return;
+            const token = window.AppState ? window.AppState.getToken() : localStorage.getItem('spider_token');
+
+            try {
+                const res = await fetch(`${API_URL}/reviews/${reviewId}/reply`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ reply: replyText })
+                });
+                if (res.ok) {
+                    showToast('تم إضافة الرد بنجاح');
+                    fetchReviews();
+                }
+            } catch(e) { showToast('حدث خطأ أثناء الرد', 'error'); }
+        }
+
+        async function updateReview(reviewId, rating) {
+            const comment = document.getElementById(`reviewEdit-${reviewId}`).value.trim();
+            if (!comment) {
+                showToast('اكتب نص التقييم قبل الحفظ', 'error');
+                return;
+            }
+            const token = window.AppState ? window.AppState.getToken() : localStorage.getItem('spider_token');
+            try {
+                const res = await fetch(`${API_URL}/reviews/${reviewId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ rating, comment })
+                });
+                const data = await res.json();
+                showToast(data.message || (res.ok ? 'تم تعديل التقييم' : 'تعذر تعديل التقييم'), res.ok ? 'success' : 'error');
+                if (res.ok) fetchReviews();
+            } catch (error) {
+                showToast('تعذر الاتصال بالسيرفر', 'error');
+            }
+        }
+
+        function changeQty(change) {
+            let maxStock = parseInt(currentProduct.stock_quantity);
+            if (isNaN(maxStock) || maxStock <= 0) maxStock = 10;
+
+            let newQty = selectedQuantity + change;
+            
+            if (newQty >= 1 && newQty <= maxStock) {
+                selectedQuantity = newQty;
+                document.getElementById('qtyDisplay').textContent = selectedQuantity;
+            } else if (newQty > maxStock) {
+                showToast("لقد وصلت للحد الأقصى المتاح في المخزن!", "error");
+            }
+        }
+
+        // ==========================================
+        // الإضافة المباشرة للباك اند (Hybrid Model)
+        // ==========================================
+        async function addToCartFromDetails(button) {
+            const token = window.AppState ? window.AppState.getToken() : (localStorage.getItem('spider_token') || localStorage.getItem('token'));
+            if (!token) { 
+                addGuestCartItem(currentProduct.id, selectedQuantity);
+                showToast(`تم إضافة عدد (${selectedQuantity}) لسلة الزائر`);
+                if (typeof updateGlobalCartCount === 'function') updateGlobalCartCount();
+                return; 
+            }
+            
+            if (button) button.disabled = true;
+
+            try {
+                // إرسال الطلب للسيرفر مباشرة بدون حفظ محلي
+                const res = await fetch(`${API_URL}/cart`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ product_id: parseInt(currentProduct.id), quantity: selectedQuantity })
+                });
+
+                if (res.ok || res.status === 200 || res.status === 201) {
+                    // تحديث الأيقونة اللي في الناف بار فوراً من السيرفر
+                    if (typeof updateGlobalCartCount === 'function') updateGlobalCartCount();
+                    
+                    showToast(`تم إضافة عدد (${selectedQuantity}) للسلة بنجاح!`);
+                    
+                    // تصفير العداد في الشاشة بعد الإضافة بنجاح
+                    selectedQuantity = 1; 
+                    document.getElementById('qtyDisplay').textContent = selectedQuantity;
+                } else {
+                    const data = await res.json();
+                    showToast(data.message || 'حدث خطأ أثناء الإضافة', 'error');
+                }
+            } catch (err) {
+                showToast('خطأ في الاتصال بالخادم 🔌', 'error');
+            } finally {
+                if (button) button.disabled = false;
+            }
+        }
+
+        async function addToWishlist() {
+            const token = window.AppState ? window.AppState.getToken() : (localStorage.getItem('spider_token') || localStorage.getItem('token'));
+            if (!token) {
+                showToast('يجب تسجيل الدخول لإضافة المنتج لقائمة الأمنيات', 'error');
+                return;
+            }
+            try {
+                const res = await fetch(`${API_URL}/wishlist`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ product_id: Number(currentProduct.id) })
+                });
+                const data = await res.json();
+                showToast(data.message || (res.ok ? 'تمت الإضافة لقائمة الأمنيات' : 'تعذر إضافة المنتج'), res.ok ? 'success' : 'error');
+            } catch (error) {
+                showToast('تعذر الاتصال بالسيرفر', 'error');
+            }
+        }
+
+        function addGuestCartItem(id, quantity) {
+            const productId = Number(id);
+            if (!productId) return;
+            if (window.AppState) {
+                window.AppState.addCartItem(productId, quantity);
+                return;
+            }
+            let cart = [];
+            try { cart = JSON.parse(localStorage.getItem('spider_cart') || '[]'); } catch (error) { cart = []; }
+            const existing = cart.find(item => Number(item.id || item.product_id) === productId);
+            if (existing) existing.quantity = Number(existing.quantity || 0) + quantity;
+            else cart.push({ id: productId, product_id: productId, quantity });
+            localStorage.setItem('spider_cart', JSON.stringify(cart));
+        }
+
+        function showError(msg) {
+            document.getElementById('productContainer').innerHTML = `<div class="text-center py-12 w-full"><i class="fas fa-exclamation-triangle text-error-500 text-5xl mb-4"></i><h2 class="text-2xl font-bold text-gray-800">${escapeHTML(msg)}</h2></div>`;
+        }
+
+        function showToast(message, type = 'success') {
+            if (window.AppUI) return window.AppUI.toast(message, type);
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const isSuccess = type === 'success';
+            
+            toast.className = `pointer-events-auto relative overflow-hidden bg-white/95 backdrop-blur-md border-r-4 ${isSuccess ? 'border-success-500' : 'border-error-500'} shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-xl w-80 transform transition-all duration-500 translate-x-full opacity-0 flex p-4 items-center gap-4`;
+            
+            toast.innerHTML = `
+                <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${isSuccess ? 'bg-success-100 text-success-600' : 'bg-error-100 text-error-600'}">
+                    <i class="fas ${isSuccess ? 'fa-check' : 'fa-exclamation'} text-lg"></i>
+                </div>
+                <div class="flex-1">
+                    <h4 class="font-bold text-gray-800 text-sm">${isSuccess ? 'تم بنجاح' : 'تنبيه'}</h4>
+                    <p class="text-xs text-gray-500 font-medium mt-0.5 leading-relaxed">${escapeHTML(message)}</p>
+                </div>
+                <button type="button" class="flex-shrink-0 text-gray-400 hover:text-gray-700" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+                <div class="absolute bottom-0 left-0 w-full h-1 bg-gray-100">
+                    <div class="h-full ${isSuccess ? 'bg-success-500' : 'bg-error-500'} animate-progress"></div>
+                </div>
+            `;
+            
+            container.appendChild(toast);
+            requestAnimationFrame(() => setTimeout(() => toast.classList.remove('translate-x-full', 'opacity-0'), 10));
+            setTimeout(() => { toast.classList.add('translate-x-full', 'opacity-0'); setTimeout(() => toast.remove(), 500); }, 3000);
+        }
+
+        window.addEventListener('load', fetchProductDetails);
+    </script>
+</body>
+</html>

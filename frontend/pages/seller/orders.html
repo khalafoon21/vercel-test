@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spider Store | طلبات البائع</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config={theme:{extend:{fontFamily:{sans:['Cairo','sans-serif']}}}}</script>
+    <style>body{background:#f8fafc}</style>
+</head>
+<body id="seller-layout" class="font-sans text-slate-800 antialiased flex flex-col md:flex-row min-h-screen">
+    <main class="flex-1 p-4 md:p-8 md:mr-64 w-full overflow-hidden">
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 pb-4 mb-8">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-extrabold text-slate-950">طلبات منتجاتي</h1>
+                <p class="text-slate-500 mt-1">لو الطلب فيه منتجات من أكثر من بائع، ستظهر لك منتجاتك فقط.</p>
+            </div>
+            <button type="button" onclick="fetchOrders()" class="bg-white border border-slate-200 hover:bg-slate-50 px-4 py-2 rounded-md font-bold flex items-center gap-2"><i class="fas fa-rotate"></i> تحديث</button>
+        </header>
+
+        <section id="ordersContainer" class="space-y-4">
+            <p class="p-10 bg-white border border-slate-100 rounded-lg text-center text-cyan-600 font-bold">جاري التحميل...</p>
+        </section>
+    </main>
+
+    <div id="orderDetailsModal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[92vh] overflow-y-auto">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white">
+                <h2 class="text-xl font-extrabold text-slate-950">تفاصيل الطلب</h2>
+                <button type="button" onclick="closeOrderDetails()" class="h-9 w-9 rounded-md bg-slate-100 hover:bg-slate-200"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="orderDetailsContent" class="p-5"></div>
+        </div>
+    </div>
+
+    <script src="../../components/app-state.js"></script>
+    <script src="../../components/seller-sidebar.js"></script>
+    <script>
+        loadSellerSidebar('orders');
+        const API_URL = '/api';
+        const token = window.AppState ? window.AppState.getToken() : (localStorage.getItem('spider_token') || localStorage.getItem('token'));
+        let ordersCache = [];
+        const escapeHTML = value => String(value || '').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+        const money = value => `${Number(value || 0).toFixed(2)} ج.م`;
+
+        function logout() {
+            if (window.AppState) window.AppState.clearToken();
+            else {
+                localStorage.removeItem('spider_token');
+                localStorage.removeItem('token');
+            }
+            window.location.href = '../auth/login.html';
+        }
+
+        async function fetchOrders() {
+            const container = document.getElementById('ordersContainer');
+            container.innerHTML = '<p class="p-10 bg-white border border-slate-100 rounded-lg text-center text-cyan-600 font-bold">جاري التحميل...</p>';
+            try {
+                const response = await fetch(`${API_URL}/seller/orders`, { headers: { Authorization: `Bearer ${token}` } });
+                const result = await response.json();
+                if (!response.ok || !result.success) throw new Error(result.message || 'Forbidden');
+                ordersCache = result.data || [];
+                renderOrders(ordersCache);
+            } catch (error) {
+                container.innerHTML = '<p class="p-10 bg-white border border-red-100 rounded-lg text-center text-red-600 font-bold">غير مسموح بتحميل طلبات البائع.</p>';
+            }
+        }
+
+        function renderOrders(orders) {
+            const container = document.getElementById('ordersContainer');
+            if (!orders.length) {
+                container.innerHTML = '<p class="p-12 bg-white border border-slate-100 rounded-lg text-center text-slate-500">لا توجد طلبات على منتجاتك بعد.</p>';
+                return;
+            }
+
+            container.innerHTML = orders.map(order => `
+                <article class="bg-white border border-slate-100 rounded-lg shadow-sm overflow-hidden">
+                    <div class="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        <div class="cursor-pointer" onclick="openOrderDetails(${order.id})">
+                            <h2 class="text-lg font-extrabold text-slate-950">طلب #${order.id}</h2>
+                            <p class="text-sm text-slate-500">${escapeHTML(order.full_name)} - ${escapeHTML(order.phone)} - ${escapeHTML(order.status)}</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <strong class="text-cyan-600">${money(order.seller_subtotal)}</strong>
+                            <button type="button" onclick="openOrderDetails(${order.id})" class="h-9 w-9 rounded-md bg-slate-100 hover:bg-slate-800 hover:text-white"><i class="fas fa-eye"></i></button>
+                        </div>
+                    </div>
+                    <div class="divide-y divide-slate-100">
+                        ${(order.items || []).map(item => `
+                            <div class="p-5 flex items-center justify-between gap-4">
+                                <div>
+                                    <p class="font-bold text-slate-900">${escapeHTML(item.title)}</p>
+                                    <p class="text-sm text-slate-500">الكمية: ${item.quantity} × ${money(item.price_at_purchase)}</p>
+                                </div>
+                                <span class="font-bold text-slate-700">${money(Number(item.quantity) * Number(item.price_at_purchase))}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </article>
+            `).join('');
+        }
+
+        function openOrderDetails(orderId) {
+            const order = ordersCache.find(item => Number(item.id) === Number(orderId));
+            if (!order) return;
+            const items = order.items || [];
+            const subtotal = Number(order.seller_subtotal || items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.price_at_purchase), 0));
+            document.getElementById('orderDetailsContent').innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+                    ${detailItem('رقم الطلب', `#${order.id}`)}
+                    ${detailItem('اسم العميل', order.full_name || 'غير مسجل')}
+                    ${detailItem('رقم الهاتف', order.phone || 'غير مسجل')}
+                    ${detailItem('العنوان', order.shipping_address || 'غير محدد')}
+                    ${detailItem('المدينة / الدولة', `${order.city || '-'} / ${order.country || '-'}`)}
+                    ${detailItem('تاريخ الطلب', order.created_at || '-')}
+                    ${detailItem('طريقة الدفع', order.payment_method || 'Cash on Delivery')}
+                    ${detailItem('حالة الطلب', order.status || 'Pending')}
+                    ${detailItem('ملاحظات', order.notes || 'لا توجد')}
+                </div>
+                <div class="border border-slate-100 rounded-lg overflow-hidden mb-5">
+                    <div class="bg-slate-50 p-4 font-extrabold text-slate-950">منتجاتك داخل الطلب فقط</div>
+                    <div class="divide-y divide-slate-100">
+                        ${items.map(item => `
+                            <div class="p-4 flex justify-between gap-4">
+                                <div><p class="font-bold text-slate-900">${escapeHTML(item.title)}</p><p class="text-sm text-slate-500">الكمية: ${item.quantity} × ${money(item.price_at_purchase)}</p></div>
+                                <strong class="text-cyan-600">${money(Number(item.quantity) * Number(item.price_at_purchase))}</strong>
+                            </div>
+                        `).join('') || '<p class="p-4 text-slate-500">لا توجد منتجات لهذا البائع.</p>'}
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    ${detailItem('Subtotal لمنتجاتك', money(subtotal))}
+                    ${detailItem('الشحن', 'لا يوزع على البائعين حاليًا')}
+                    ${detailItem('إجمالي الطلب الكامل', money(order.total_amount))}
+                </div>
+            `;
+            document.getElementById('orderDetailsModal').classList.remove('hidden');
+            document.getElementById('orderDetailsModal').classList.add('flex');
+        }
+
+        function detailItem(label, value) {
+            return `<div class="bg-slate-50 border border-slate-100 rounded-md p-4"><span class="block text-slate-400 text-xs mb-1">${escapeHTML(label)}</span><strong class="text-slate-800">${escapeHTML(value)}</strong></div>`;
+        }
+
+        function closeOrderDetails() {
+            document.getElementById('orderDetailsModal').classList.add('hidden');
+            document.getElementById('orderDetailsModal').classList.remove('flex');
+        }
+
+        fetchOrders();
+    </script>
+</body>
+</html>

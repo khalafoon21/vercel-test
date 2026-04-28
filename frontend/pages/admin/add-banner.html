@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spider Store | لوحة التحكم - إدارة السلايدر</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Cairo', 'sans-serif'] },
+                    colors: {
+                        primary: { 50: '#ECFEFF', 100: '#CFFAFE', 500: '#06B6D4', 600: '#0891B2', 700: '#0E7490' },
+                        success: { 50: '#F0FDF4', 500: '#22C55E', 700: '#15803D' },
+                        error: { 50: '#FEF2F2', 500: '#EF4444', 700: '#B91C1C' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style> 
+        body { background-color: #F8FAFC; } 
+        .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        input[type="color"] { cursor: pointer; height: 42px; padding: 0; border: none; border-radius: 0.5rem; overflow: hidden;}
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: none; }
+    </style>
+</head>
+<body id="admin-layout" class="font-sans text-gray-800 antialiased flex flex-col md:flex-row min-h-screen">
+
+    <main class="flex-1 p-4 md:p-8 md:mr-64 w-full overflow-hidden transition-all duration-300 relative custom-scrollbar">
+        
+        <div id="toast" class="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-2 px-6 py-3 rounded-lg shadow-lg font-bold text-sm md:text-base transition-all duration-300 opacity-0 pointer-events-none -translate-y-4">
+            <i id="toastIcon" class="fas"></i>
+            <span id="toastMessage">رسالة الإشعار هنا</span>
+        </div>
+
+        <header class="mb-8 border-b border-gray-200 pb-4">
+            <h1 class="text-2xl md:text-3xl font-extrabold text-gray-900">إدارة السلايدر (Banners)</h1>
+            <p class="text-gray-500 mt-1 text-sm md:text-base">تحكم في العروض والألوان والنصوص في الصفحة الرئيسية.</p>
+        </header>
+
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+            <div class="xl:col-span-1">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sticky top-8">
+                    <h2 class="text-lg font-bold mb-5 flex items-center gap-2 text-gray-800">
+                        <i class="fas fa-image text-primary-500"></i> إضافة عرض جديد
+                    </h2>
+                    
+                    <form id="addBannerForm" onsubmit="handleAddBanner(event)">
+                        <div class="mb-4">
+                            <label class="block text-sm font-bold text-gray-700 mb-2">العنوان</label>
+                            <input type="text" id="title" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none transition bg-gray-50 focus:bg-white">
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-sm font-bold text-gray-700 mb-2">الوصف</label>
+                            <input type="text" id="description" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none transition bg-gray-50 focus:bg-white">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">لون النص</label>
+                                <input type="color" id="text_color" value="#1f2937" class="w-full shadow-sm ring-1 ring-gray-200">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">لون الخلفية</label>
+                                <input type="color" id="bg_color" value="#ffffff" class="w-full shadow-sm ring-1 ring-gray-200">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4 mb-5">
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">نص الزر</label>
+                                <input type="text" id="button_text" value="اكتشف الآن" class="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none bg-gray-50 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">لون الزر</label>
+                                <input type="color" id="button_color" value="#06B6D4" class="w-full shadow-sm ring-1 ring-gray-200">
+                            </div>
+                        </div>
+
+                        <div class="mb-6 bg-primary-50/50 p-4 rounded-xl border border-primary-100 text-center">
+                            <label class="block text-sm font-bold text-gray-800 mb-3">صورة العرض <span class="text-error-500">*</span></label>
+                            <input type="file" id="image" accept="image/*" required class="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-100 file:text-primary-700 hover:file:bg-primary-200 cursor-pointer bg-white border border-gray-200 rounded-lg px-2 py-2">
+                        </div>
+
+                        <button type="submit" id="submitBtn" class="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 rounded-lg shadow-md transition-all flex items-center justify-center gap-2">
+                            <i class="fas fa-plus-circle"></i> إضافة السلايدر
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="xl:col-span-2">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="p-6 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
+                        <h2 class="text-lg font-bold text-gray-800">البانرات الحالية</h2>
+                        <button type="button" onclick="fetchBanners()" class="text-primary-600 hover:text-primary-800 text-sm font-bold flex items-center gap-1 transition">
+                            <i class="fas fa-sync-alt"></i> تحديث
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full text-right border-collapse min-w-[600px]">
+                            <thead class="bg-gray-50 text-gray-600 text-xs font-bold uppercase tracking-wider">
+                                <tr>
+                                    <th class="p-4 w-32 text-center">الصورة</th>
+                                    <th class="p-4">التفاصيل</th>
+                                    <th class="p-4 text-center w-32">إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bannersTableBody" class="divide-y divide-gray-100 text-sm md:text-base">
+                                <tr>
+                                    <td colspan="3" class="p-12 text-center text-primary-600">
+                                        <i class="fas fa-circle-notch fa-spin text-3xl mb-3"></i>
+                                        <p class="font-semibold">جاري تحميل البانرات...</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="editModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl p-6 md:p-8 max-w-lg w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300" id="editModalContent">
+            <h2 class="text-xl font-bold mb-2 flex items-center gap-2 text-primary-600">
+                <i class="fas fa-pen-square"></i> تعديل نصوص وألوان البانر
+            </h2>
+            <p class="text-xs text-gray-500 mb-6 bg-gray-50 p-2 rounded border border-gray-100">
+                <i class="fas fa-info-circle text-primary-500"></i> لتغيير الصورة، قم بحذف هذا البانر وإضافته من جديد.
+            </p>
+            
+            <form id="editBannerForm">
+                <input type="hidden" id="editId">
+                <div class="mb-4">
+                    <label class="block mb-2 text-sm font-bold text-gray-700">العنوان</label>
+                    <input id="editTitle" class="w-full border border-gray-200 bg-gray-50 focus:bg-white rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary-500 transition" />
+                </div>
+                <div class="mb-4">
+                    <label class="block mb-2 text-sm font-bold text-gray-700">الوصف</label>
+                    <input id="editDesc" class="w-full border border-gray-200 bg-gray-50 focus:bg-white rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary-500 transition" />
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block mb-2 text-sm font-bold text-gray-700">لون النص</label>
+                        <input type="color" id="editTextColor" class="w-full shadow-sm ring-1 ring-gray-200 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block mb-2 text-sm font-bold text-gray-700">لون الخلفية</label>
+                        <input type="color" id="editBgColor" class="w-full shadow-sm ring-1 ring-gray-200 rounded-lg">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4 mb-8">
+                    <div>
+                        <label class="block mb-2 text-sm font-bold text-gray-700">نص الزر</label>
+                        <input id="editBtnText" class="w-full border border-gray-200 bg-gray-50 focus:bg-white rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-primary-500 transition">
+                    </div>
+                    <div>
+                        <label class="block mb-2 text-sm font-bold text-gray-700">لون الزر</label>
+                        <input type="color" id="editBtnColor" class="w-full shadow-sm ring-1 ring-gray-200 rounded-lg">
+                    </div>
+                </div>
+                
+                <div class="mb-8 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                    <label class="block mb-2 text-sm font-bold text-gray-700">تغيير الصورة (اختياري)</label>
+                    <input type="file" id="editImage" accept="image/*" class="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-100 file:text-primary-700 hover:file:bg-primary-200 cursor-pointer bg-white border border-gray-200 rounded-lg px-2 py-2">
+                </div>
+
+                <div class="flex gap-3">
+                    <button type="submit" id="saveEditBtn" class="flex-1 bg-primary-600 hover:bg-primary-700 text-white py-3 rounded-lg font-bold transition shadow-md flex justify-center items-center gap-2">
+                        <i class="fas fa-save"></i> حفظ التعديلات
+                    </button>
+                    <button type="button" onclick="closeEditModal()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 py-3 rounded-lg font-bold transition">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl p-6 md:p-8 max-w-sm w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300" id="deleteModalContent">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 rounded-full bg-error-50 text-error-500 flex items-center justify-center text-3xl mx-auto mb-4">
+                    <i class="fas fa-trash-alt"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-2">تأكيد الحذف</h3>
+                <p class="text-gray-500 text-sm">هل أنت متأكد من حذف هذا البانر نهائياً؟</p>
+            </div>
+            <div class="flex gap-3">
+                <button type="button" id="confirmDeleteBtn" class="flex-1 bg-error-500 hover:bg-error-600 text-white font-bold py-2 px-4 rounded-lg transition">تأكيد الحذف</button>
+                <button type="button" onclick="closeDeleteModal()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg transition">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../components/app-state.js"></script>
+    <script src="../../components/admin-sidebar.js"></script>
+    <script>
+        if(typeof loadAdminSidebar === 'function') loadAdminSidebar('add-banner');
+        
+        // المتغيرات الخاصة بالباك إند اللي انت كاتبها
+        const API_URL = '/api';
+        const BASE_SERVER = window.location.origin;
+        let bannersCache = [];
+        let bannerToDelete = null;
+        const escapeHTML = value => window.AppUI ? window.AppUI.escapeHTML(value) : String(value || '');
+        const safeNumber = value => Number.isFinite(Number(value)) ? Number(value) : 0;
+        const safeColor = (value, fallback = '#ffffff') => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(String(value || '')) ? value : fallback;
+        const buildImageUrl = imagePath => {
+            const cleanPath = String(imagePath || '').trim();
+            if (!cleanPath) return 'https://via.placeholder.com/150?text=No+Image';
+            return /^https?:\/\//i.test(cleanPath) ? cleanPath : `${BASE_SERVER}${cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`}`;
+        };
+
+        function logout() {
+            if (window.AppState) window.AppState.clearToken();
+            else localStorage.removeItem('spider_token');
+            window.location.href = '../auth/login.html';
+        }
+
+        // نظام الإشعارات (Toast) الموحد
+        function showToast(message, type = 'success') {
+            if (window.AppUI) return window.AppUI.toast(message, type);
+            const toast = document.getElementById('toast');
+            const toastIcon = document.getElementById('toastIcon');
+            const toastMessage = document.getElementById('toastMessage');
+
+            toast.className = 'absolute top-4 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-2 px-6 py-3 rounded-lg shadow-lg font-bold text-sm md:text-base transition-all duration-300';
+            
+            if (type === 'success') {
+                toast.classList.add('bg-success-50', 'text-success-700', 'border', 'border-success-200');
+                toastIcon.className = 'fas fa-check-circle text-lg';
+            } else {
+                toast.classList.add('bg-error-50', 'text-error-700', 'border', 'border-error-200');
+                toastIcon.className = 'fas fa-exclamation-circle text-lg';
+            }
+
+            toastMessage.textContent = message;
+            toast.classList.remove('opacity-0', 'pointer-events-none', '-translate-y-4');
+            setTimeout(() => toast.classList.add('opacity-0', 'pointer-events-none', '-translate-y-4'), 3000);
+        }
+
+        // --- دالة جلب البيانات ---
+        async function fetchBanners() {
+            const tbody = document.getElementById('bannersTableBody');
+            tbody.innerHTML = `<tr><td colspan="3" class="p-8 text-center text-primary-500"><i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i> جاري التحديث...</td></tr>`;
+            
+            try {
+                const res = await fetch(`${API_URL}/banners`);
+                const data = await res.json();
+                if (data.success || res.ok) {
+                    bannersCache = data.data || data.banners || [];
+                    renderBanners();
+                }
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="3" class="text-center p-8 font-bold text-error-500 bg-error-50"><i class="fas fa-wifi mb-2 block text-2xl"></i>خطأ في الاتصال</td></tr>`;
+            }
+        }
+
+        // --- دالة رسم الجدول ---
+        function renderBanners() {
+            const tbody = document.getElementById('bannersTableBody');
+            
+            if (!bannersCache.length) {
+                tbody.innerHTML = `<tr><td colspan="3" class="p-12 text-center text-gray-500 bg-gray-50"><i class="fas fa-images text-4xl mb-3"></i><br>لا توجد عروض حالياً.</td></tr>`;
+                return;
+            }
+            
+            tbody.innerHTML = bannersCache.map(banner => `
+                <tr class="hover:bg-gray-50 transition-colors group">
+                    <td class="p-4 flex justify-center">
+                        <div class="w-32 h-16 rounded-lg overflow-hidden shadow-sm border border-gray-200 group-hover:shadow-md transition" style="background-color:${safeColor(banner.bg_color, '#fff')}">
+                            <img src="${buildImageUrl(banner.image_url)}" onerror="this.src='https://via.placeholder.com/150'" class="w-full h-full object-contain">
+                        </div>
+                    </td>
+                    <td class="p-4">
+                        <p class="font-bold text-gray-800 text-base">${escapeHTML(banner.title) || '\u0628\u062f\u0648\u0646 \u0639\u0646\u0648\u0627\u0646'}</p>
+                        <p class="text-sm text-gray-500 mt-1 truncate max-w-[200px]" title="${escapeHTML(banner.description)}">${escapeHTML(banner.description) || '\u0644\u0627 \u064a\u0648\u062c\u062f \u0648\u0635\u0641'}</p>
+                    </td>
+                    <td class="p-4 text-center">
+                        <div class="flex items-center justify-center gap-2">
+                            <button type="button" onclick="openEditModal(${safeNumber(banner.id)})" class="text-primary-600 hover:text-white hover:bg-primary-600 bg-primary-50 border border-primary-100 h-9 w-9 rounded-lg transition shadow-sm flex items-center justify-center" title="تعديل الألوان والنصوص">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button type="button" onclick="openDeleteModal(${safeNumber(banner.id)})" class="text-error-500 hover:text-white hover:bg-error-500 bg-error-50 border border-error-100 h-9 w-9 rounded-lg transition shadow-sm flex items-center justify-center" title="حذف البانر">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // --- دالة الإضافة (POST) ---
+        async function handleAddBanner(event) {
+            event.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const token = localStorage.getItem('spider_token');
+            if(!token) return showToast('قم بتسجيل الدخول كمسؤول أولاً', 'error');
+
+            const formData = new FormData();
+            formData.append('title', document.getElementById('title').value);
+            formData.append('description', document.getElementById('description').value);
+            formData.append('bg_color', document.getElementById('bg_color').value);
+            formData.append('text_color', document.getElementById('text_color').value);
+            formData.append('button_text', document.getElementById('button_text').value);
+            formData.append('button_color', document.getElementById('button_color').value);
+            
+            const imageFile = document.getElementById('image').files[0];
+            if(imageFile) formData.append('image', imageFile);
+
+            const originalBtnHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> جاري الرفع...';
+
+            try {
+                const response = await fetch(`${API_URL}/banners`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (response.ok || data.success) {
+                    showToast('تم إضافة البانر بنجاح!', 'success');
+                    document.getElementById('addBannerForm').reset();
+                    // إعادة الألوان للافتراضي
+                    document.getElementById('text_color').value = "#1f2937";
+                    document.getElementById('bg_color').value = "#ffffff";
+                    document.getElementById('button_color').value = "#06B6D4";
+                    
+                    fetchBanners();
+                } else showToast(data.message || 'حدث خطأ', 'error');
+            } catch (e) { 
+                showToast('خطأ في الاتصال بالسيرفر', 'error'); 
+            } finally { 
+                btn.disabled = false; 
+                btn.innerHTML = originalBtnHtml; 
+            }
+        }
+
+        // --- نظام التعديل المطور (PUT) ---
+        function openEditModal(id) {
+            const banner = bannersCache.find(b => b.id === id);
+            if (!banner) return;
+            
+            document.getElementById('editId').value = banner.id;
+            document.getElementById('editTitle').value = banner.title || '';
+            document.getElementById('editDesc').value = banner.description || '';
+            document.getElementById('editTextColor').value = banner.text_color || '#1f2937';
+            document.getElementById('editBgColor').value = banner.bg_color || '#ffffff';
+            document.getElementById('editBtnText').value = banner.button_text || 'اكتشف الآن';
+            document.getElementById('editBtnColor').value = banner.button_color || '#0891b2';
+            document.getElementById('editImage').value = '';
+            
+            const modal = document.getElementById('editModal');
+            const content = document.getElementById('editModalContent');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeEditModal() { 
+            const modal = document.getElementById('editModal');
+            const content = document.getElementById('editModalContent');
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        document.getElementById('editBannerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('saveEditBtn');
+            const originalHtml = btn.innerHTML;
+            const id = document.getElementById('editId').value;
+            const token = localStorage.getItem('spider_token');
+            
+            const formData = new FormData();
+            formData.append('title', document.getElementById('editTitle').value);
+            formData.append('description', document.getElementById('editDesc').value);
+            formData.append('text_color', document.getElementById('editTextColor').value);
+            formData.append('bg_color', document.getElementById('editBgColor').value);
+            formData.append('button_text', document.getElementById('editBtnText').value);
+            formData.append('button_color', document.getElementById('editBtnColor').value);
+            const editImage = document.getElementById('editImage').files[0];
+            if (editImage) formData.append('image', editImage);
+            
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحفظ...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_URL}/banners/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+                if (response.ok) {
+                    showToast('تم تحديث البانر بنجاح!', 'success');
+                    closeEditModal();
+                    fetchBanners();
+                } else {
+                    showToast('فشل التحديث', 'error');
+                }
+            } catch (error) { 
+                showToast('خطأ في الاتصال', 'error'); 
+            } finally {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+        });
+
+        // --- نظام الحذف المطور (DELETE) ---
+        function openDeleteModal(id) {
+            bannerToDelete = id;
+            const modal = document.getElementById('deleteModal');
+            const modalContent = document.getElementById('deleteModalContent');
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeDeleteModal() {
+            bannerToDelete = null;
+            const modal = document.getElementById('deleteModal');
+            const modalContent = document.getElementById('deleteModalContent');
+            
+            modal.classList.add('opacity-0');
+            modalContent.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+            if (!bannerToDelete) return;
+            
+            const token = localStorage.getItem('spider_token');
+            const btn = document.getElementById('confirmDeleteBtn');
+            const originalText = btn.innerHTML;
+            
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحذف...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_URL}/banners/${bannerToDelete}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    showToast('تم الحذف بنجاح!', 'success');
+                    fetchBanners();
+                } else {
+                    showToast('حدث خطأ أثناء الحذف', 'error');
+                }
+            } catch (error) {
+                showToast('خطأ في الاتصال بالسيرفر', 'error');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                closeDeleteModal();
+            }
+        });
+
+        // تشغيل الدالة عند تحميل الصفحة
+        window.addEventListener('load', fetchBanners);
+    </script>
+</body>
+</html>

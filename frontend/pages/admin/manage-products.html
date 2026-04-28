@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spider Store | المنتجات</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Cairo', 'sans-serif'] },
+                    colors: {
+                        primary: { 50: '#ECFEFF', 100: '#CFFAFE', 500: '#06B6D4', 600: '#0891B2', 700: '#0E7490' },
+                        secondary: { 500: '#F59E0B' },
+                        success: { 50: '#F0FDF4', 500: '#22C55E', 700: '#15803D' },
+                        error: { 50: '#FEF2F2', 500: '#EF4444', 700: '#B91C1C' },
+                        warning: { 50: '#FFFBEB', 500: '#F59E0B', 700: '#B45309' },
+                        info: { 50: '#EFF6FF', 500: '#3B82F6', 700: '#1D4ED8' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #F8FAFC; }
+        .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body id="admin-layout" class="font-sans text-gray-800 antialiased flex flex-col md:flex-row min-h-screen">
+    <main class="flex-1 p-4 md:p-8 md:mr-64 w-full overflow-hidden transition-all duration-300 relative custom-scrollbar">
+        <div id="toast" class="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-2 px-6 py-3 rounded-lg shadow-lg font-bold text-sm md:text-base transition-all duration-300 opacity-0 pointer-events-none -translate-y-4">
+            <i id="toastIcon" class="fas"></i>
+            <span id="toastMessage">رسالة الإشعار هنا</span>
+        </div>
+
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-gray-200 pb-4">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-extrabold text-gray-900">المنتجات</h1>
+                <p class="text-gray-500 mt-1 text-sm md:text-base">عرض وتعديل وحذف ومراجعة منتجات الأدمن والبائعين.</p>
+            </div>
+            <div class="flex flex-wrap gap-3">
+                <a href="add-product.html" class="bg-primary-600 text-white hover:bg-primary-700 px-4 py-2 rounded-lg font-semibold transition flex items-center gap-2 shadow-sm">
+                    <i class="fas fa-plus"></i> منتج جديد
+                </a>
+                <button type="button" onclick="fetchProducts()" class="bg-primary-50 text-primary-600 hover:bg-primary-100 px-4 py-2 rounded-lg font-semibold transition flex items-center gap-2">
+                    <i class="fas fa-sync-alt"></i> تحديث
+                </button>
+            </div>
+        </header>
+
+        <section class="bg-white border border-gray-100 rounded-2xl p-4 mb-5 shadow-sm flex flex-col md:flex-row gap-3 md:items-center justify-between">
+            <div class="flex flex-wrap gap-2">
+                <button type="button" data-filter="" onclick="setStatusFilter('')" class="status-filter px-4 py-2 rounded-lg bg-primary-600 text-white font-bold text-sm">الكل</button>
+                <button type="button" data-filter="pending" onclick="setStatusFilter('pending')" class="status-filter px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-bold text-sm">pending</button>
+                <button type="button" data-filter="approved" onclick="setStatusFilter('approved')" class="status-filter px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-bold text-sm">approved</button>
+                <button type="button" data-filter="rejected" onclick="setStatusFilter('rejected')" class="status-filter px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-bold text-sm">rejected</button>
+            </div>
+            <span id="productCountLabel" class="text-sm text-gray-500 font-bold">0 منتج</span>
+        </section>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 w-full overflow-hidden">
+            <div class="overflow-x-auto w-full custom-scrollbar">
+                <table class="w-full text-right border-collapse min-w-[1100px]">
+                    <thead class="bg-gray-50 border-b border-gray-200 text-gray-600 text-sm font-bold uppercase tracking-wider">
+                        <tr>
+                            <th class="p-5 whitespace-nowrap w-20">الصورة</th>
+                            <th class="p-5 whitespace-nowrap">اسم المنتج</th>
+                            <th class="p-5 whitespace-nowrap">القسم</th>
+                            <th class="p-5 whitespace-nowrap">البائع / المصدر</th>
+                            <th class="p-5 whitespace-nowrap">الحالة</th>
+                            <th class="p-5 whitespace-nowrap">السعر</th>
+                            <th class="p-5 whitespace-nowrap">المخزون</th>
+                            <th class="p-5 whitespace-nowrap text-center">الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productsContainer" class="divide-y divide-gray-100 text-sm md:text-base">
+                        <tr><td colspan="8" class="p-12 text-center text-primary-600"><i class="fas fa-circle-notch fa-spin text-4xl mb-3"></i><p class="font-semibold">جاري تحميل المنتجات...</p></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl p-6 md:p-8 max-w-sm w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300" id="deleteModalContent">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 rounded-full bg-error-50 text-error-500 flex items-center justify-center text-3xl mx-auto mb-4"><i class="fas fa-exclamation-triangle"></i></div>
+                <h3 class="text-xl font-bold text-gray-900 mb-2">تأكيد الحذف</h3>
+                <p class="text-gray-500">هل تريد حذف هذا المنتج نهائيًا؟</p>
+            </div>
+            <div class="flex gap-3">
+                <button type="button" id="confirmDeleteBtn" class="flex-1 bg-error-500 hover:bg-error-600 text-white font-bold py-2 px-4 rounded-lg transition">نعم، احذف</button>
+                <button type="button" onclick="closeDeleteModal()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg transition">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="productDetailsModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-5xl w-full max-h-[92vh] overflow-y-auto shadow-2xl custom-scrollbar">
+            <div class="p-5 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10">
+                <h2 class="text-xl font-extrabold text-gray-900">تفاصيل المنتج</h2>
+                <button type="button" onclick="closeDetailsModal()" class="h-9 w-9 rounded-lg bg-gray-100 hover:bg-gray-200"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="productDetailsContent" class="p-5"></div>
+        </div>
+    </div>
+
+    <div id="editModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl p-6 md:p-8 max-w-3xl w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300 max-h-[90vh] overflow-y-auto custom-scrollbar" id="editModalContent">
+            <h3 class="text-xl font-bold text-gray-900 mb-6">تعديل المنتج</h3>
+            <form id="editProductForm" class="space-y-4">
+                <input type="hidden" id="editProductId">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input id="editTitle" required class="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white outline-none focus:ring-2 focus:ring-primary-500" placeholder="اسم المنتج">
+                    <input type="number" id="editPrice" required min="0" class="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white outline-none focus:ring-2 focus:ring-primary-500" placeholder="السعر">
+                    <input type="number" id="editDiscount" min="0" max="100" class="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white outline-none focus:ring-2 focus:ring-primary-500" placeholder="الخصم">
+                    <input type="number" id="editStock" required min="0" class="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white outline-none focus:ring-2 focus:ring-primary-500" placeholder="المخزون">
+                    <input id="editBrand" class="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white outline-none focus:ring-2 focus:ring-primary-500" placeholder="العلامة التجارية">
+                    <select id="editCategory" class="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white outline-none focus:ring-2 focus:ring-primary-500"></select>
+                </div>
+                <input id="editTags" list="tagsList" class="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white outline-none focus:ring-2 focus:ring-primary-500" placeholder="الوسوم مفصولة بفواصل">
+                <datalist id="tagsList"></datalist>
+                <textarea id="editDescription" rows="4" class="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white outline-none focus:ring-2 focus:ring-primary-500" placeholder="الوصف"></textarea>
+                <input type="file" id="editImage" accept="image/*" class="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-50">
+                <div class="flex gap-3 pt-2">
+                    <button type="submit" id="saveEditBtn" class="flex-1 bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 rounded-lg transition">حفظ التعديل</button>
+                    <button type="button" onclick="closeEditModal()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 rounded-lg transition">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="../../components/app-state.js"></script>
+    <script src="../../components/admin-sidebar.js"></script>
+    <script>
+        loadAdminSidebar('manage-products');
+        const API_URL = '/api';
+        const BASE_SERVER = window.location.origin;
+        let productToDelete = null;
+        let productsCache = [];
+        let categoriesCache = [];
+        let currentStatusFilter = '';
+
+        const escapeHTML = str => String(str || '').replace(/[&<>'"]/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag]));
+        const safeNumber = value => Number.isFinite(Number(value)) ? Number(value) : 0;
+        const buildImageUrl = imagePath => {
+            const cleanPath = String(imagePath || '').trim();
+            if (!cleanPath) return 'https://via.placeholder.com/150?text=No+Image';
+            return /^https?:\/\//i.test(cleanPath) ? cleanPath : `${BASE_SERVER}${cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`}`;
+        };
+        const productImages = product => {
+            const images = [];
+            const push = img => { const clean = String(img || '').trim(); if (clean && !images.includes(clean)) images.push(clean); };
+            push(product.image_url || product.image);
+            [product.images_array, product.images_list, product.images].forEach(value => {
+                if (Array.isArray(value)) return value.forEach(push);
+                if (typeof value === 'string' && value.trim()) {
+                    try { const parsed = JSON.parse(value); Array.isArray(parsed) ? parsed.forEach(push) : push(parsed); }
+                    catch { value.split(/[,\n]/).forEach(push); }
+                }
+            });
+            return images;
+        };
+        const statusBadge = status => {
+            const classes = {
+                approved: 'bg-success-50 text-success-700 border-success-200',
+                pending: 'bg-warning-50 text-warning-700 border-warning-200',
+                rejected: 'bg-error-50 text-error-700 border-error-200'
+            };
+            return `<span class="px-3 py-1 rounded-full text-xs font-bold border ${classes[status] || classes.pending}">${escapeHTML(status || 'pending')}</span>`;
+        };
+
+        function logout() {
+            if (window.AppState) window.AppState.clearToken();
+            else localStorage.removeItem('spider_token');
+            window.location.href = '../auth/login.html';
+        }
+
+        function showToast(message, type = 'success') {
+            if (window.AppUI) return window.AppUI.toast(message, type);
+            const toast = document.getElementById('toast');
+            const toastIcon = document.getElementById('toastIcon');
+            const toastMessage = document.getElementById('toastMessage');
+            toast.className = 'absolute top-4 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-2 px-6 py-3 rounded-lg shadow-lg font-bold text-sm md:text-base transition-all duration-300';
+            toastIcon.className = 'fas text-lg';
+            toast.classList.add(type === 'error' ? 'bg-error-50' : 'bg-success-50', type === 'error' ? 'text-error-700' : 'text-success-700', 'border', type === 'error' ? 'border-error-200' : 'border-success-200');
+            toastIcon.classList.add(type === 'error' ? 'fa-exclamation-circle' : 'fa-check-circle');
+            toastMessage.textContent = message;
+            toast.classList.remove('opacity-0', 'pointer-events-none', '-translate-y-4');
+            setTimeout(() => toast.classList.add('opacity-0', 'pointer-events-none', '-translate-y-4'), 3000);
+        }
+
+        function setStatusFilter(status) {
+            currentStatusFilter = status;
+            document.querySelectorAll('.status-filter').forEach(btn => {
+                const active = btn.dataset.filter === status;
+                btn.className = `status-filter px-4 py-2 rounded-lg font-bold text-sm ${active ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700'}`;
+            });
+            fetchProducts();
+        }
+
+        async function fetchProducts() {
+            const container = document.getElementById('productsContainer');
+            container.innerHTML = `<tr><td colspan="8" class="p-12 text-center text-primary-600"><i class="fas fa-circle-notch fa-spin text-4xl mb-3"></i><p class="font-semibold">جاري تحديث المنتجات...</p></td></tr>`;
+            try {
+                const token = localStorage.getItem('spider_token');
+                const query = currentStatusFilter ? `?status=${encodeURIComponent(currentStatusFilter)}` : '';
+                const response = await fetch(`${API_URL}/admin/products${query}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await response.json();
+                if (!response.ok || !data.success) throw new Error(data.message || 'Load failed');
+                productsCache = data.data || [];
+                renderProducts(productsCache);
+            } catch (error) {
+                container.innerHTML = `<tr><td colspan="8" class="text-center text-error-500 p-12 bg-error-50 font-bold rounded-lg"><i class="fas fa-wifi text-3xl mb-3 block"></i> تعذر تحميل المنتجات</td></tr>`;
+            }
+        }
+
+        function renderProducts(products) {
+            const container = document.getElementById('productsContainer');
+            document.getElementById('productCountLabel').textContent = `${products.length} منتج`;
+            if (products.length === 0) {
+                container.innerHTML = `<tr><td colspan="8" class="p-16 text-center text-gray-400 bg-gray-50"><i class="fas fa-box-open text-5xl mb-4"></i><br><p class="text-lg font-semibold">لا توجد منتجات.</p></td></tr>`;
+                return;
+            }
+
+            container.innerHTML = products.map(product => {
+                const imageUrl = buildImageUrl((productImages(product)[0] || product.image_url));
+                const stock = safeNumber(product.stock_quantity);
+                const stockClass = stock > 10 ? 'text-success-600 bg-success-50' : (stock > 0 ? 'text-warning-600 bg-warning-50' : 'text-error-600 bg-error-50');
+                const source = product.owner_role === 'admin' ? 'أدمن' : 'بائع';
+                return `
+                    <tr class="hover:bg-gray-50 transition duration-150 group">
+                        <td class="p-4"><div class="w-16 h-16 rounded-lg bg-white border border-gray-200 overflow-hidden shadow-sm flex items-center justify-center"><img src="${imageUrl}" alt="${escapeHTML(product.title)}" class="object-cover w-full h-full" onerror="this.onerror=null;this.src='https://via.placeholder.com/150?text=No+Image'"></div></td>
+                        <td class="p-5 font-bold text-gray-800">${escapeHTML(product.title)}<span class="block text-xs text-gray-400 font-normal mt-1">#${safeNumber(product.id)} ${product.brand ? '| ' + escapeHTML(product.brand) : ''}</span></td>
+                        <td class="p-5 text-gray-600 font-medium"><span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-sm">${escapeHTML(product.category_name || 'غير محدد')}</span></td>
+                        <td class="p-5 text-gray-700"><span class="font-bold">${source}</span><span class="block text-xs text-gray-400 mt-1">${escapeHTML(product.seller_name || 'غير محدد')}</span></td>
+                        <td class="p-5">${statusBadge(product.status || 'approved')}</td>
+                        <td class="p-5 font-extrabold text-primary-600">${safeNumber(product.price).toFixed(2)} <span class="text-xs font-semibold text-gray-500">ج.م</span></td>
+                        <td class="p-5 font-bold"><span class="px-3 py-1 rounded-full text-sm ${stockClass}">${stock > 0 ? `${stock} قطعة` : 'نفذت الكمية'}</span></td>
+                        <td class="p-5 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <button type="button" onclick="openDetailsModal(${safeNumber(product.id)})" class="text-gray-600 hover:text-white hover:bg-gray-700 bg-gray-50 border border-gray-100 h-9 w-9 rounded-lg transition shadow-sm" title="التفاصيل"><i class="fas fa-eye"></i></button>
+                                <button type="button" onclick="editProduct(${safeNumber(product.id)})" class="text-blue-500 hover:text-white hover:bg-blue-500 bg-blue-50 border border-blue-100 h-9 w-9 rounded-lg transition shadow-sm" title="تعديل"><i class="fas fa-edit"></i></button>
+                                <button type="button" onclick="openDeleteModal(${safeNumber(product.id)})" class="text-error-500 hover:text-white hover:bg-error-500 bg-error-50 border border-error-100 h-9 w-9 rounded-lg transition shadow-sm" title="حذف"><i class="fas fa-trash-alt"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function openDetailsModal(id) {
+            const product = productsCache.find(item => Number(item.id) === Number(id));
+            if (!product) return showToast('لم يتم العثور على المنتج', 'error');
+            const images = productImages(product);
+            const imageHtml = images.length ? images.map(img => `<img src="${buildImageUrl(img)}" class="h-24 w-24 rounded-lg border border-gray-200 object-cover bg-gray-50" onerror="this.onerror=null;this.src='https://via.placeholder.com/150?text=No+Image'">`).join('') : '<p class="text-gray-400">لا توجد صور</p>';
+            document.getElementById('productDetailsContent').innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-6">
+                    <div><div class="flex flex-wrap gap-3">${imageHtml}</div></div>
+                    <div class="space-y-4">
+                        <div><h3 class="text-2xl font-extrabold text-gray-900">${escapeHTML(product.title)}</h3><p class="text-gray-500 mt-1">#${product.id} - ${escapeHTML(product.created_at || '')}</p></div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                            ${detailItem('السعر', `${safeNumber(product.price).toFixed(2)} ج.م`)}
+                            ${detailItem('الخصم', `${safeNumber(product.discount)}%`)}
+                            ${detailItem('المخزون', safeNumber(product.stock_quantity))}
+                            ${detailItem('القسم', product.category_name || 'غير محدد')}
+                            ${detailItem('البراند', product.brand || 'غير محدد')}
+                            ${detailItem('الوسوم', product.tags || 'لا توجد')}
+                            ${detailItem('صاحب المنتج', product.seller_name || 'غير محدد')}
+                            ${detailItem('المصدر', product.owner_role === 'admin' ? 'أدمن' : 'بائع')}
+                            ${detailItem('حالة المنتج', product.status || 'approved')}
+                            ${detailItem('حالة البائع', product.seller_status || 'pending')}
+                        </div>
+                        <div class="bg-gray-50 border border-gray-100 rounded-lg p-4"><h4 class="font-bold text-gray-900 mb-2">الوصف</h4><p class="text-gray-600 leading-7 whitespace-pre-line">${escapeHTML(product.description || 'لا يوجد وصف')}</p></div>
+                        <div class="flex flex-wrap gap-2 pt-2">
+                            <button type="button" onclick="updateProductStatus(${product.id}, 'approved')" class="bg-success-500 hover:bg-success-600 text-white px-4 py-2 rounded-lg font-bold">موافقة</button>
+                            <button type="button" onclick="updateProductStatus(${product.id}, 'rejected')" class="bg-error-500 hover:bg-error-600 text-white px-4 py-2 rounded-lg font-bold">رفض</button>
+                            <button type="button" onclick="updateProductStatus(${product.id}, 'pending')" class="bg-warning-500 hover:bg-warning-600 text-white px-4 py-2 rounded-lg font-bold">pending</button>
+                            ${product.owner_role !== 'admin' ? `<button type="button" onclick="updateProductStatus(${product.id}, 'approved_seller')" class="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-bold">اعتماد البائع</button>` : ''}
+                            <button type="button" onclick="editProduct(${product.id})" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-bold">تعديل</button>
+                            <button type="button" onclick="openDeleteModal(${product.id})" class="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-bold">حذف</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('productDetailsModal').classList.remove('hidden');
+            document.getElementById('productDetailsModal').classList.add('flex');
+        }
+
+        function detailItem(label, value) {
+            return `<div class="bg-white border border-gray-100 rounded-lg p-3"><span class="block text-gray-400 text-xs mb-1">${escapeHTML(label)}</span><strong class="text-gray-800">${escapeHTML(value)}</strong></div>`;
+        }
+
+        function closeDetailsModal() {
+            document.getElementById('productDetailsModal').classList.add('hidden');
+            document.getElementById('productDetailsModal').classList.remove('flex');
+        }
+
+        async function updateProductStatus(id, status) {
+            const token = localStorage.getItem('spider_token');
+            const response = await fetch(`${API_URL}/admin/products/${id}/status`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ status })
+            });
+            const data = await response.json();
+            showToast(data.message || (response.ok ? 'تم تحديث الحالة' : 'تعذر تحديث الحالة'), response.ok ? 'success' : 'error');
+            if (response.ok) {
+                closeDetailsModal();
+                await fetchProducts();
+            }
+        }
+
+        function openDeleteModal(id) {
+            productToDelete = id;
+            const modal = document.getElementById('deleteModal');
+            const modalContent = document.getElementById('deleteModalContent');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-95');
+                modalContent.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeDeleteModal() {
+            productToDelete = null;
+            const modal = document.getElementById('deleteModal');
+            const modalContent = document.getElementById('deleteModalContent');
+            modal.classList.add('opacity-0');
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+            if (!productToDelete) return;
+            const token = localStorage.getItem('spider_token');
+            const response = await fetch(`${API_URL}/products/${productToDelete}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+            const data = await response.json();
+            showToast(data.message || (response.ok ? 'تم حذف المنتج' : 'تعذر حذف المنتج'), response.ok ? 'success' : 'error');
+            closeDeleteModal();
+            closeDetailsModal();
+            if (response.ok) fetchProducts();
+        });
+
+        async function fetchCategoriesForEdit() {
+            if (categoriesCache.length > 0) return categoriesCache;
+            const response = await fetch(`${API_URL}/categories`);
+            const data = await response.json();
+            categoriesCache = data.data || [];
+            return categoriesCache;
+        }
+
+        async function fetchTagsForEdit() {
+            const response = await fetch(`${API_URL}/tags`);
+            const data = await response.json();
+            const tags = data.data || [];
+            document.getElementById('tagsList').innerHTML = tags.map(tag => `<option value="${escapeHTML(tag.name)}"></option>`).join('');
+        }
+
+        async function populateCategorySelect(selectedId) {
+            const select = document.getElementById('editCategory');
+            const categories = await fetchCategoriesForEdit();
+            select.innerHTML = '<option value="">غير محدد</option>' + categories.map(category => `<option value="${safeNumber(category.id)}" ${String(category.id) === String(selectedId) ? 'selected' : ''}>${escapeHTML(category.name)}</option>`).join('');
+        }
+
+        function editProduct(id) {
+            const product = productsCache.find(item => Number(item.id) === Number(id));
+            if (!product) return showToast('لم يتم العثور على المنتج', 'error');
+            document.getElementById('editProductId').value = product.id;
+            document.getElementById('editTitle').value = product.title || '';
+            document.getElementById('editPrice').value = safeNumber(product.price);
+            document.getElementById('editDiscount').value = safeNumber(product.discount);
+            document.getElementById('editStock').value = safeNumber(product.stock_quantity);
+            document.getElementById('editBrand').value = product.brand || '';
+            document.getElementById('editTags').value = product.tags || '';
+            document.getElementById('editDescription').value = product.description || '';
+            document.getElementById('editImage').value = '';
+            populateCategorySelect(product.category_id);
+            fetchTagsForEdit();
+            closeDetailsModal();
+            const modal = document.getElementById('editModal');
+            const modalContent = document.getElementById('editModalContent');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-95');
+                modalContent.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeEditModal() {
+            const modal = document.getElementById('editModal');
+            const modalContent = document.getElementById('editModalContent');
+            modal.classList.add('opacity-0');
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        document.getElementById('editProductForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const id = document.getElementById('editProductId').value;
+            const product = productsCache.find(item => Number(item.id) === Number(id));
+            const token = localStorage.getItem('spider_token');
+            const formData = new FormData();
+            formData.append('title', document.getElementById('editTitle').value);
+            formData.append('price', document.getElementById('editPrice').value);
+            formData.append('discount', document.getElementById('editDiscount').value || 0);
+            formData.append('stock_quantity', document.getElementById('editStock').value);
+            formData.append('brand', document.getElementById('editBrand').value);
+            formData.append('category_id', document.getElementById('editCategory').value);
+            formData.append('tags', document.getElementById('editTags').value);
+            formData.append('description', document.getElementById('editDescription').value);
+            formData.append('status', product ? (product.status || 'approved') : 'approved');
+            formData.append('featured', product && product.featured ? 1 : 0);
+            const image = document.getElementById('editImage').files[0];
+            if (image) formData.append('image', image);
+
+            const response = await fetch(`${API_URL}/products/${id}`, { method: 'PUT', headers: { 'Authorization': `Bearer ${token}` }, body: formData });
+            const data = await response.json();
+            showToast(data.message || (response.ok ? 'تم تحديث المنتج' : 'تعذر تحديث المنتج'), response.ok ? 'success' : 'error');
+            if (response.ok) {
+                closeEditModal();
+                await fetchTagsForEdit();
+                await fetchProducts();
+            }
+        });
+
+        window.addEventListener('load', () => {
+            fetchTagsForEdit();
+            fetchProducts();
+        });
+    </script>
+</body>
+</html>

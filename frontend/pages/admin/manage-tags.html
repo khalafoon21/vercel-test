@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spider Store | إدارة الوسوم</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Cairo', 'sans-serif'] }, colors: { primary: { 50: '#ECFEFF', 500: '#06B6D4', 600: '#0891B2', 700: '#0E7490' }, error: { 50: '#FEF2F2', 500: '#EF4444' }, success: { 50: '#F0FDF4', 500: '#22C55E' } } } } }
+    </script>
+</head>
+<body id="admin-layout" class="font-sans bg-gray-50 text-gray-800 min-h-screen flex flex-col md:flex-row">
+    <main class="flex-1 p-4 md:p-8 md:mr-64 w-full">
+        <header class="mb-8 border-b border-gray-200 pb-4">
+            <h1 class="text-2xl md:text-3xl font-extrabold text-gray-900">إدارة الوسوم</h1>
+            <p class="text-gray-500 mt-1">أضف الوسوم المستخدمة في البحث والفلترة وربطها بالمنتجات.</p>
+        </header>
+
+        <section class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+            <form id="tagForm" class="flex flex-col sm:flex-row gap-3">
+                <input id="tagName" required class="flex-1 px-4 py-3 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-primary-500" placeholder="مثال: gaming">
+                <button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white font-bold px-6 py-3 rounded-lg transition">حفظ الوسم</button>
+            </form>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div id="tagsList" class="flex flex-wrap gap-3 text-sm text-gray-500">جاري التحميل...</div>
+        </section>
+    </main>
+
+    <script src="../../components/app-state.js"></script>
+    <script src="../../components/admin-sidebar.js"></script>
+    <script>
+        loadAdminSidebar('manage-tags');
+        const API_URL = '/api';
+        const token = () => localStorage.getItem('spider_token');
+
+        function logout() {
+            if (window.AppState) window.AppState.clearToken();
+            else localStorage.removeItem('spider_token');
+            window.location.href = '../auth/login.html';
+        }
+
+        async function fetchTags() {
+            const list = document.getElementById('tagsList');
+            try {
+                const res = await fetch(`${API_URL}/tags`);
+                const data = await res.json();
+                const tags = data.data || [];
+                list.innerHTML = tags.length ? tags.map(tag => `
+                    <span class="inline-flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-full px-4 py-2 font-bold text-gray-700">
+                        #${tag.name}
+                        <button type="button" onclick="deleteTag(${tag.id})" class="text-error-500 hover:text-red-700"><i class="fas fa-times"></i></button>
+                    </span>
+                `).join('') : 'لا توجد وسوم بعد.';
+            } catch (error) {
+                list.textContent = 'تعذر تحميل الوسوم.';
+            }
+        }
+
+        document.getElementById('tagForm').addEventListener('submit', async event => {
+            event.preventDefault();
+            try {
+                const res = await fetch(`${API_URL}/tags`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token()}` },
+                    body: JSON.stringify({ name: document.getElementById('tagName').value.trim() })
+                });
+                const data = await res.json();
+                if (window.AppUI) window.AppUI.toast(data.message || (res.ok ? 'تم حفظ الوسم' : 'تعذر حفظ الوسم'), res.ok ? 'success' : 'error');
+                if (res.ok) document.getElementById('tagForm').reset();
+                fetchTags();
+            } catch (error) {
+                if (window.AppUI) window.AppUI.toast('خطأ في الاتصال بالسيرفر', 'error');
+            }
+        });
+
+        async function deleteTag(id) {
+            const ok = window.AppUI ? await window.AppUI.confirmDelete('هل تريد حذف هذا الوسم؟') : true;
+            if (!ok) return;
+            const res = await fetch(`${API_URL}/tags/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token()}` } });
+            const data = await res.json();
+            if (window.AppUI) window.AppUI.toast(data.message || (res.ok ? 'تم حذف الوسم' : 'تعذر حذف الوسم'), res.ok ? 'success' : 'error');
+            fetchTags();
+        }
+
+        fetchTags();
+    </script>
+</body>
+</html>
