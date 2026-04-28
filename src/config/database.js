@@ -49,37 +49,93 @@ const demoData = {
 
 async function initDB() {
     if (isVercel) {
-        // Vercel: Use in-memory mock DB
+        // Vercel: Use in-memory mock DB with Promise-based API
         console.log('🧪 Vercel mode: Using in-memory demo database');
+        
+        // Helper to parse WHERE clauses
+        const parseWhereClause = (query, params = []) => {
+            const whereMatch = query.match(/WHERE\s+(.+?)(?:ORDER|LIMIT|$)/i);
+            if (!whereMatch) return null;
+            
+            const whereClause = whereMatch[1].trim();
+            let paramIndex = 0;
+            
+            return (record) => {
+                let clause = whereClause;
+                clause = clause.replace(/\?/g, () => {
+                    const value = params[paramIndex++];
+                    if (typeof value === 'string') return `'${value}'`;
+                    return value;
+                });
+                
+                // Handle simple conditions like "id = 'value'"
+                if (clause.includes('=')) {
+                    const parts = clause.split('=');
+                    const fieldName = parts[0].trim();
+                    const fieldValue = parts[1].trim().replace(/'/g, '');
+                    return String(record[fieldName]) === String(fieldValue);
+                }
+                return true;
+            };
+        };
+        
         dbInstance = {
-            all: (query, params, cb) => {
-                // Mock all() for SELECT queries
-                if (query.includes('SELECT')) {
-                    const table = query.match(/FROM\s+(\w+)/i)?.[1];
-                    if (demoData[table]) {
-                        return cb(null, demoData[table]);
+            all: (query, params = []) => {
+                // Mock all() for SELECT queries - returns Promise
+                return new Promise((resolve, reject) => {
+                    try {
+                        if (query.includes('SELECT')) {
+                            const table = query.match(/FROM\s+(\w+)/i)?.[1];
+                            if (demoData[table]) {
+                                let results = demoData[table];
+                                const whereFilter = parseWhereClause(query, params);
+                                if (whereFilter) {
+                                    results = results.filter(whereFilter);
+                                }
+                                return resolve(results);
+                            }
+                        }
+                        resolve([]);
+                    } catch (err) {
+                        console.error('Mock DB all() error:', err);
+                        reject(err);
                     }
-                }
-                cb(null, []);
+                });
             },
-            run: (query, params, cb) => {
-                // Mock run() - no writes on Vercel
-                console.log('🚫 Vercel: Write operation blocked:', query);
-                if (cb) cb(null);
-            },
-            get: (query, params, cb) => {
-                // Mock get() for single record
-                if (query.includes('WHERE id =')) {
-                    const table = query.match(/FROM\s+(\w+)/i)?.[1];
-                    const id = params?.[0];
-                    if (demoData[table]) {
-                        const record = demoData[table].find(r => r.id === id);
-                        return cb(null, record || null);
+            run: (query, params = []) => {
+                // Mock run() - no writes on Vercel, returns Promise
+                return new Promise((resolve, reject) => {
+                    try {
+                        console.log('🚫 Vercel: Write operation blocked:', query.substring(0, 50));
+                        resolve({ lastID: null, changes: 0 });
+                    } catch (err) {
+                        reject(err);
                     }
-                }
-                cb(null, null);
+                });
             },
-            exec: () => { }
+            get: (query, params = []) => {
+                // Mock get() for single record - returns Promise
+                return new Promise((resolve, reject) => {
+                    try {
+                        if (query.includes('SELECT')) {
+                            const table = query.match(/FROM\s+(\w+)/i)?.[1];
+                            if (demoData[table]) {
+                                let results = demoData[table];
+                                const whereFilter = parseWhereClause(query, params);
+                                if (whereFilter) {
+                                    results = results.filter(whereFilter);
+                                }
+                                return resolve(results[0] || null);
+                            }
+                        }
+                        resolve(null);
+                    } catch (err) {
+                        console.error('Mock DB get() error:', err);
+                        reject(err);
+                    }
+                });
+            },
+            exec: () => Promise.resolve()
         };
         return dbInstance;
     }

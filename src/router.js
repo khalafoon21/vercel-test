@@ -23,6 +23,18 @@ const uploadsRoot = sysPath.resolve(__dirname, '..', 'uploads');
 const frontendRoot = sysPath.resolve(__dirname, '..', 'frontend');
 
 const router = async (req, res) => {
+    // Set CORS headers for all requests
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Max-Age', '86400');
+
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+        res.writeHead(204);
+        return res.end();
+    }
+
     const baseURL = `http://${req.headers.host}`;
     const parsedUrl = new URL(req.url, baseURL);
     const path = parsedUrl.pathname;

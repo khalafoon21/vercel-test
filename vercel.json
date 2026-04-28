@@ -1,35 +1,67 @@
 {
   "version": 2,
+  "buildCommand": "npm run build || echo 'No build required'",
+  "env": {
+    "VERCEL": "true"
+  },
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 30,
+      "memory": 1024
+    }
+  },
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/index.js"
+      "dest": "/api/index.js",
+      "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]
     },
     {
       "src": "/uploads/(.*)",
       "dest": "/uploads/$1"
     },
     {
-      "src": "/",
-      "dest": "/frontend/index.html"
-    },
-    {
       "src": "/(.*)",
-      "dest": "/frontend/$1"
+      "dest": "/frontend/index.html"
     }
   ],
-  "functions": {
-    "api/index.js": {
-      "maxDuration": 30
-    }
-  },
   "headers": [
     {
-      "source": "/(.*)",
+      "source": "/api/(.*)",
       "headers": [
         {
-          "key": "Cache-Control", 
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        },
+        {
+          "key": "Cache-Control",
           "value": "public, max-age=0, s-maxage=60"
+        }
+      ]
+    },
+    {
+      "source": "/uploads/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400"
+        }
+      ]
+    },
+    {
+      "source": "/frontend/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600, s-maxage=86400"
         }
       ]
     }
