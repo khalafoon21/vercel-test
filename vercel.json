@@ -10,12 +10,12 @@
       "dest": "/uploads/$1"
     },
     {
-      "src": "/(.*)",
-      "dest": "/frontend/$1"
-    },
-    {
       "src": "/",
       "dest": "/frontend/index.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/frontend/$1"
     }
   ],
   "functions": {
